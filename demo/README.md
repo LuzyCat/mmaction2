@@ -172,9 +172,7 @@ or use checkpoint url from `configs/` to directly load corresponding checkpoint,
    and outputting result labels with score higher than 0.2.
 
    ```shell
-   python demo/webcam_demo.py demo/demo_configs/i3d_r50_32x2x1_video_infer.py \
-     checkpoints/i3d_imagenet-pretrained-r50_8xb8-32x2x1-100e_kinetics400-rgb_20220812-e213c223.pth tools/data/kinetics/label_map_k400.txt \
-     --average-size 5 --threshold 0.2
+   python demo/webcam_demo.py demo/demo_configs/i3d_r50_32x2x1_video_infer.py checkpoints/i3d_imagenet-pretrained-r50_8xb8-32x2x1-100e_kinetics400-rgb_20220812-e213c223.pth tools/data/kinetics/label_map_k400.txt --average-size 5 --threshold 0.2
    ```
 
 Considering the efficiency difference for users' hardware, Some modifications might be done to suit the case.

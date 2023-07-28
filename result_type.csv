@@ -1,0 +1,56 @@
+kinetics400_idx,activity3D_idx,kinetics400_act,activity3D_act,type
+353,0,tasting food,eating food with a fork,3
+337,1,surfing water,pouring water into a cup,0
+347,2,taking a shower,taking medicine,0
+100,3,drinking,drinking water,3
+-1,4,none,putting food in the fridge/taking food from the fridge,0
+135,5,frying vegetables,trimming vegetables,0
+210,6,peeling apples,peeling fruit,2
+257,7,pumping gas,using a gas stove,0
+81,8,cutting nails,cutting vegetable on the cutting board,0
+37,9,brushing teeth,brushing teeth,1
+382,10,washing hands,washing hands,1
+379,11,washing dishes,washing face,0
+-1,12,none,wiping face with a towel,0
+143,13,golf putting,putting on cosmetics,0
+143,14,golf putting,putting on lipstick,0
+36,15,brushing hair,brushing hair,0
+108,16,dying hair,blow drying hair,0
+143,17,golf putting,putting on a jacket,0
+347,18,taking a shower,taking off a jacket,0
+63,19,cleaning shoes,putting on/taking off shoes,0
+143,20,golf putting,putting on/taking off glasses,0
+379,21,washing dishes,washing the dishes,1
+60,22,cleaning floor,vacuuming the floor,3
+60,23,cleaning floor,scrubbing the floor with a rag,0
+287,24,setting table,wiping off the dinning table,1
+200,25,moving furniture,rubbing up furniture,0
+186,26,making bed,spreading bedding/folding bedding,2
+96,27,doing laundry,washing a towel by hands,3
+96,28,doing laundry,hanging out laundry,3
+344,29,swinging on something,looking around for something,0
+374,30,using remote controller (not gaming),using a remote control,1
+264,31,reading book,reading a book,1
+265,32,reading newspaper,reading a newspaper,1
+396,33,writing,handwriting,1
+-1,34,none,talking on the phone,0
+355,35,texting,playing with a mobile phone,2
+373,36,using computer,using a computer,1
+316,37,smoking,smoking,1
+57,38,clapping,clapping,1
+288,39,shaking hands,rubbing face with hands,0
+119,40,exercising arm,doing freehand exercise,0
+76,41,cracking neck,doing neck roll exercise,2
+193,42,massaging back,massaging a shoulder oneself,0
+347,43,taking a shower,taking a bow,0
+-1,44,none,talking to each other,0
+288,45,shaking hands,handshaking,1
+158,46,hugging,hugging each other,1
+345,47,sword fighting,fighting each other,0
+-1,48,none,waving a hand,0
+-1,49,none,flapping a hand up and down (beckoning),0
+127,50,finger snapping,pointing with a finger,0
+203,51,opening bottle,opening the door and walking in,0
+60,52,cleaning floor,fallen on the floor,0
+-1,53,none,sitting up/standing up,0
+-1,54,none,lying down,0

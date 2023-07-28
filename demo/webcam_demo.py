@@ -15,7 +15,8 @@ from mmaction.apis import init_recognizer
 
 FONTFACE = cv2.FONT_HERSHEY_COMPLEX_SMALL
 FONTSCALE = 1
-FONTCOLOR = (255, 255, 255)  # BGR, white
+# FONTCOLOR = (255, 255, 255)  # BGR, white
+FONTCOLOR = (0, 0, 255)  # BGR, red
 MSGCOLOR = (128, 128, 128)  # BGR, gray
 THICKNESS = 1
 LINETYPE = 1

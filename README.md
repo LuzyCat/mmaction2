@@ -349,3 +349,5 @@ We wish that the toolbox and benchmark could serve the growing research communit
 - [MMRazor](https://github.com/open-mmlab/mmrazor): OpenMMLab model compression toolbox and benchmark.
 - [MIM](https://github.com/open-mmlab/mim): MIM installs OpenMMLab packages.
 - [Playground](https://github.com/open-mmlab/playground): A central hub for gathering and showcasing amazing projects built upon OpenMMLab.
+
+python demo/webcam_demo.py demo/demo_configs/i3d_r50_32x2x1_video_infer.py checkpoints/i3d_imagenet-pretrained-r50_8xb8-32x2x1-100e_kinetics400-rgb_20220812-e213c223.pth tools/data/kinetics/label_map_k400.txt --average-size 5 --threshold 0.2

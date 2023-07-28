@@ -5,6 +5,19 @@ import os
 import os.path as osp
 import sys
 from multiprocessing import Pool
+import subprocess
+
+def get_video_resolution(file_path):
+    result = subprocess.run(
+        ['ffprobe', '-hide_banner', '-loglevel', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'csv=p=0', file_path],
+        stdout=subprocess.PIPE, text=True
+    )
+    if result.returncode == 0:
+        print(f'--->{file_path} [w][h]')
+        width, height = map(int, result.stdout.strip().split(','))
+        return width, height
+    else:
+        return None
 
 
 def resize_videos(vid_item):
@@ -17,8 +30,9 @@ def resize_videos(vid_item):
     Returns:
         bool: Whether generate video cache successfully.
     """
-    full_path, vid_path = vid_item
+    full_path, vid_path, args = vid_item
     # Change the output video extension to .mp4 if '--to-mp4' flag is set
+    # full_path = full_path.replace('(', r'\(').replace(')', r'\)')
     if args.to_mp4:
         vid_path = vid_path.split('.')
         assert len(vid_path) == 2, \
@@ -29,10 +43,11 @@ def resize_videos(vid_item):
     out_dir = osp.join(args.out_dir, dir_name)
     if not osp.exists(out_dir):
         os.makedirs(out_dir)
-    result = os.popen(
-        f'ffprobe -hide_banner -loglevel error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 {full_path}'  # noqa:E501
-    )
-    w, h = [int(d) for d in result.readline().rstrip().split(',')]
+    # result = os.popen(
+    #     f'ffprobe -hide_banner -loglevel error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 {full_path}'  # noqa:E501
+    # )
+    w, h = get_video_resolution(full_path)
+    # w, h = [int(d) for d in result.readline().rstrip().split(',')]
     if w > h:
         cmd = (f'ffmpeg -hide_banner -loglevel error -i {full_path} '
                f'-vf {"mpdecimate," if args.remove_dup else ""}'
@@ -47,8 +62,9 @@ def resize_videos(vid_item):
                f'{"-vsync vfr" if args.remove_dup else ""} '
                f'-c:v libx264 {"-g 16" if args.dense else ""} '
                f'-an {out_full_path} -y')
-    os.popen(cmd)
-    print(f'{vid_path} done')
+    subprocess.run(cmd, shell=True)
+    # os.popen(cmd)
+    print(f'---{vid_path} done')
     sys.stdout.flush()
     return True
 
@@ -109,13 +125,31 @@ if __name__ == '__main__':
     print('Total number of videos found: ', len(fullpath_list))
     print('Total number of videos transfer finished: ',
           len(done_fullpath_list))
+    
+    unique_fullpath_list = list()
+    unique_vid_list = list()
+    
     if args.level == 2:
         vid_list = list(
             map(
                 lambda p: osp.join(
                     osp.basename(osp.dirname(p)), osp.basename(p)),
                 fullpath_list))
+        done_vid_list = list(
+            map(
+                lambda p: osp.join(
+                    osp.basename(osp.dirname(p)), osp.basename(p)),
+                done_fullpath_list))
+        unique_vid_list = list(set(vid_list) - set(done_vid_list))
+        print('unique videos: ',
+          len(unique_vid_list))
+        unique_fullpath_list = list(
+            map(
+                lambda p: osp.join(args.src_dir, p), unique_vid_list))
+        
     elif args.level == 1:
         vid_list = list(map(osp.basename, fullpath_list))
+
+    print('Total number of need for processing: ', len(unique_fullpath_list))
     pool = Pool(args.num_worker)
-    pool.map(resize_videos, zip(fullpath_list, vid_list))
+    pool.map(resize_videos, zip(unique_fullpath_list, unique_vid_list, [args] * len(unique_fullpath_list)))

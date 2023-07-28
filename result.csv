@@ -1,0 +1,124 @@
+kinetics400_idx,activity3D_idx,kinetics400_act,activity3D_act,type
+109,0,eating burger,eating food with a fork,2
+110,0,eating cake,eating food with a fork,2
+111,0,eating carrots,eating food with a fork,2
+112,0,eating chips,eating food with a fork,2
+113,0,eating doughnuts,eating food with a fork,2
+114,0,eating hotdog,eating food with a fork,2
+115,0,eating ice cream,eating food with a fork,2
+116,0,eating spaghetti,eating food with a fork,2
+117,0,eating watermelon,eating food with a fork,2
+353,0,tasting food,eating food with a fork,2
+337,1,surfing water,pouring water into a cup,0
+347,2,taking a shower,taking medicine,0
+100,3,drinking,drinking water,3
+-1,4,none,putting food in the fridge/taking food from the fridge,0
+135,5,frying vegetables,trimming vegetables,0
+210,6,peeling apples,peeling fruit,2
+257,7,pumping gas,using a gas stove,0
+81,8,cutting nails,cutting vegetable on the cutting board,0
+37,9,brushing teeth,brushing teeth,1
+382,10,washing hands,washing hands,1
+379,11,washing dishes,washing face,0
+-1,12,none,wiping face with a towel,0
+143,13,golf putting,putting on cosmetics,0
+143,14,golf putting,putting on lipstick,0
+36,15,brushing hair,brushing hair,0
+108,16,dying hair,blow drying hair,0
+143,17,golf putting,putting on a jacket,0
+347,18,taking a shower,taking off a jacket,0
+63,19,cleaning shoes,putting on/taking off shoes,0
+295,19,shining shoes,putting on/taking off shoes,0
+143,20,golf putting,putting on/taking off glasses,0
+379,21,washing dishes,washing the dishes,
+380,21,washing feet,washing the dishes,
+381,21,washing hair,washing the dishes,
+382,21,washing hands,washing the dishes,
+60,22,cleaning floor,vacuuming the floor,
+198,22,mopping floor,vacuuming the floor,
+284,22,sanding floor,vacuuming the floor,
+338,22,sweeping floor,vacuuming the floor,
+60,23,cleaning floor,scrubbing the floor with a rag,
+198,23,mopping floor,scrubbing the floor with a rag,
+284,23,sanding floor,scrubbing the floor with a rag,
+338,23,sweeping floor,scrubbing the floor with a rag,
+287,24,setting table,wiping off the dinning table,
+200,25,moving furniture,rubbing up furniture,
+288,27,shaking hands,washing a towel by hands,
+379,27,washing dishes,washing a towel by hands,
+380,27,washing feet,washing a towel by hands,
+381,27,washing hair,washing a towel by hands,
+382,27,washing hands,washing a towel by hands,
+96,28,doing laundry,hanging out laundry,
+344,29,swinging on something,looking around for something,
+373,30,using computer,using a remote control,
+374,30,using remote controller (not gaming),using a remote control,
+375,30,using segway,using a remote control,
+264,31,reading book,reading a book,
+265,31,reading newspaper,reading a book,
+264,32,reading book,reading a newspaper,
+265,32,reading newspaper,reading a newspaper,
+217,35,playing accordion,playing with a mobile phone,
+218,35,playing badminton,playing with a mobile phone,
+219,35,playing bagpipes,playing with a mobile phone,
+220,35,playing basketball,playing with a mobile phone,
+221,35,playing bass guitar,playing with a mobile phone,
+222,35,playing cards,playing with a mobile phone,
+223,35,playing cello,playing with a mobile phone,
+224,35,playing chess,playing with a mobile phone,
+225,35,playing clarinet,playing with a mobile phone,
+226,35,playing controller,playing with a mobile phone,
+227,35,playing cricket,playing with a mobile phone,
+228,35,playing cymbals,playing with a mobile phone,
+229,35,playing didgeridoo,playing with a mobile phone,
+230,35,playing drums,playing with a mobile phone,
+231,35,playing flute,playing with a mobile phone,
+232,35,playing guitar,playing with a mobile phone,
+233,35,playing harmonica,playing with a mobile phone,
+234,35,playing harp,playing with a mobile phone,
+235,35,playing ice hockey,playing with a mobile phone,
+236,35,playing keyboard,playing with a mobile phone,
+237,35,playing kickball,playing with a mobile phone,
+238,35,playing monopoly,playing with a mobile phone,
+239,35,playing organ,playing with a mobile phone,
+240,35,playing paintball,playing with a mobile phone,
+241,35,playing piano,playing with a mobile phone,
+242,35,playing poker,playing with a mobile phone,
+243,35,playing recorder,playing with a mobile phone,
+244,35,playing saxophone,playing with a mobile phone,
+245,35,playing squash or racquetball,playing with a mobile phone,
+246,35,playing tennis,playing with a mobile phone,
+247,35,playing trombone,playing with a mobile phone,
+248,35,playing trumpet,playing with a mobile phone,
+249,35,playing ukulele,playing with a mobile phone,
+250,35,playing violin,playing with a mobile phone,
+251,35,playing volleyball,playing with a mobile phone,
+252,35,playing xylophone,playing with a mobile phone,
+8,36,assembling computer,using a computer,
+373,36,using computer,using a computer,
+374,36,using remote controller (not gaming),using a computer,
+375,36,using segway,using a computer,
+316,37,smoking,smoking,
+57,38,clapping,clapping,
+288,39,shaking hands,rubbing face with hands,
+382,39,washing hands,rubbing face with hands,
+120,40,exercising with an exercise ball,doing freehand exercise,
+76,41,cracking neck,doing neck roll exercise,
+120,41,exercising with an exercise ball,doing neck roll exercise,
+193,42,massaging back,massaging a shoulder oneself,
+194,42,massaging feet,massaging a shoulder oneself,
+195,42,massaging legs,massaging a shoulder oneself,
+196,42,massaging person's head,massaging a shoulder oneself,
+347,43,taking a shower,taking a bow,
+368,43,tying bow tie,taking a bow,
+158,46,hugging,hugging each other,
+345,47,sword fighting,fighting each other,
+127,50,finger snapping,pointing with a finger,
+203,51,opening bottle,opening the door and walking in,
+204,51,opening present,opening the door and walking in,
+273,51,riding or walking with horse,opening the door and walking in,
+378,51,walking the dog,opening the door and walking in,
+60,52,cleaning floor,fallen on the floor,
+198,52,mopping floor,fallen on the floor,
+284,52,sanding floor,fallen on the floor,
+338,52,sweeping floor,fallen on the floor,
