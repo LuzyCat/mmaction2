@@ -8,6 +8,7 @@ import argparse
 import glob
 import os
 import os.path as osp
+import random
 
 # 불용어(stopwords) 리스트 생성
 stop_words = set(stopwords.words('english'))
@@ -69,7 +70,7 @@ def make_sinon_list(list1, list2):
         else:
             print("유사한 문장이 없습니다.")
 
-def make_new_labels(list1, list2, file):
+def make_new_labels(file):
     type_data = pd.read_csv(file)
     # activity3D_idx 값을 기준으로 오름차순으로 정렬합니다.
     type_data = type_data.sort_values(by='activity3D_idx', ascending=True)
@@ -87,7 +88,7 @@ def make_new_labels(list1, list2, file):
         _aidx = row['activity3D_idx']
         _kidx = row['kinetics400_idx']
 
-        if _type is 0:
+        if _type == 0:
             new_labels.append(_alabel)
             new_index = n_kinetics+add_count
             trans_labels.append((_aidx, new_index))
@@ -104,6 +105,7 @@ def parse_args():
         description='Generate new label list and Edit data annotation file')
     parser.add_argument('--src_label', type=str, default='tools/data/kinetics/label_map_k400.txt', help='source label list file')
     parser.add_argument('--tgt_label', type=str, default='tools/data/ETRI-Activity3D/label_map_ETRI-Activity3D.txt', help='target label list file')
+    parser.add_argument('--output', type=str, default='data/k433/label_map_k433.txt', help='output label list file')
     parser.add_argument('--type_dir', type=str, default='./result_type.csv', help='label transition file')
     args = parser.parse_args()
 
@@ -125,8 +127,45 @@ if __name__ == '__main__':
     
     # 새로운 label을 생성한다
     # type_file = './result_type.csv'
-    trans_labels = make_new_labels(list1, list2, args.type_dir)
+    trans_labels = make_new_labels(args.type_dir)
+    mappings = dict()
 
     for pair in trans_labels:
         ori_idx, new_idx = pair
-        print(f'{ori_idx} to {new_idx}')
+        # print(f'{ori_idx} to {new_idx}')
+
+        mappings[ori_idx] = new_idx
+
+        if new_idx >= 400:
+            list1.append(list2[ori_idx])
+    
+    # with open(args.output, 'w') as file:
+    #     for item in list1:
+    #         file.write(item + '\n')
+
+    fileList1 = 'data/kinetics400/kinetics400_train_list_videos.txt'
+    fileList2 = 'data/ETRI-Activity3D/Activity3D_train_list_videos.txt'
+
+    newListFile = 'data/k433/k433_train_list_videos.txt'
+
+    files1 = read_text_file(fileList1)
+    files2 = read_text_file(fileList2)
+
+    processed_lines = list()
+
+    for line in files1:
+        file_name, index = line.split()
+        processed_lines.append(f'kinetics400_videos_train/{file_name} {index}\n')
+    
+    for line in files2:
+        file_name, index = line.split()
+        new_index = mappings.get(int(index))
+        processed_lines.append(f'Activity3D_videos_train/{file_name} {new_index}\n')
+
+    random.shuffle(processed_lines)
+
+    with open(newListFile, 'w') as file:
+        for items in processed_lines:
+            file.write(items)
+            
+    

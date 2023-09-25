@@ -13,7 +13,6 @@ def get_video_resolution(file_path):
         stdout=subprocess.PIPE, text=True
     )
     if result.returncode == 0:
-        print(f'--->{file_path} [w][h]')
         width, height = map(int, result.stdout.strip().split(','))
         return width, height
     else:

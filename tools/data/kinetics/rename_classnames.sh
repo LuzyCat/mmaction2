@@ -28,11 +28,11 @@ ls ./videos_test | while read class; do \
   fi
 done
 
-ls ./videos_train | while read class; do \
+ls ./videos_val | while read class; do \
   newclass=`echo $class | tr " " "_" `;
   if [ "${class}" != "${newclass}" ]
   then
-    mv "videos_train/${class}" "videos_train/${newclass}";
+    mv "videos_val/${class}" "videos_val/${newclass}";
   fi
 done
 

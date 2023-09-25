@@ -45,7 +45,7 @@ def parse_args():
     parser.add_argument(
         '--num-split',
         type=int,
-        default=3,
+        default=1,
         help='number of split to file list')
     parser.add_argument(
         '--subset',
