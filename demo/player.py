@@ -1,44 +1,32 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-import argparse
-import time
-from collections import deque
-from operator import itemgetter
-from threading import Thread
-
 import os
 import sys
 import cv2
-import numpy as np
-import torch
+import argparse
+import os.path as osp
+from operator import itemgetter
+from typing import Optional, Tuple
+# mmengine
 from mmengine import Config, DictAction
-from mmengine.dataset import Compose, pseudo_collate
-from mmaction.apis import init_recognizer
 
-from PySide6.QtCore import QStandardPaths, Qt, Slot
-from PySide6.QtGui import QAction, QIcon, QKeySequence, QImage, QPixmap
+from mmaction.apis import inference_recognizer, init_recognizer
+from mmaction.visualization import ActionVisualizer
+# Qt
+from PySide6.QtCore import QStandardPaths, Qt, Slot, QRect
+from PySide6.QtGui import QAction, QIcon, QKeySequence, QImage, QPixmap, QFontDatabase, QFont
 from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog,
                                 QMainWindow, QStyle, QToolBar, QWidget,
                                 QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox,
-                                QLabel)
+                                QLabel, QTextEdit)
 from PySide6.QtMultimedia import (QAudioOutput, QMediaFormat, QMediaPlayer)
 from PySide6.QtMultimediaWidgets import QVideoWidget
 
 from webcam import WebcamThread
 
-FONTFACE = cv2.FONT_HERSHEY_COMPLEX_SMALL
-FONTSCALE = 1
-# FONTCOLOR = (255, 255, 255)  # BGR, white
-FONTCOLOR = (0, 0, 255)  # BGR, red
-MSGCOLOR = (128, 128, 128)  # BGR, gray
-THICKNESS = 1
-LINETYPE = 1
-EXCLUED_STEPS = [
-    'OpenCVInit', 'OpenCVDecode', 'DecordInit', 'DecordDecode', 'PyAVInit',
-    'PyAVDecode', 'RawFrameDecode'
-]
 AVI = "video/x-msvideo"  # AVI
 MP4 = 'video/mp4'
 
+MODEL = None
 
 def get_supported_mime_types():
     result = []
@@ -47,10 +35,58 @@ def get_supported_mime_types():
         result.append(mime_type.name())
     return result
 
+def parse_args():
+    parser = argparse.ArgumentParser(description='MMAction2 player demo')
+    parser.add_argument('--config', default='demo/demo_configs/slowfast_act3d_video_infer.py',
+                        help='test config file path')
+    parser.add_argument('--checkpoint', default='checkpoints/slowfast_r50_8xb8-4x16x1-256e_act3d.pth',
+                        help='checkpoint file/url')
+    parser.add_argument('--label', default='tools/data/ETRI-Activity3D/label_map_ETRI-Activity3D.txt',
+                        help='label file')
+    parser.add_argument(
+        '--cfg-options',
+        nargs='+',
+        action=DictAction,
+        help='override some settings in the used config, the key-value pair '
+        'in xxx=yyy format will be merged into config file. For example, '
+        "'--cfg-options model.backbone.depth=18 model.backbone.with_cp=True'")
+    parser.add_argument(
+        '--device', type=str, default='cuda:0', help='CPU/CUDA device option')
+    parser.add_argument(
+        '--fps',
+        default=30,
+        type=int,
+        help='specify fps value of the output video when using rawframes to '
+        'generate file')
+    parser.add_argument(
+        '--font-scale',
+        default=None,
+        type=float,
+        help='font scale of the text in output video')
+    parser.add_argument(
+        '--font-color',
+        default='white',
+        help='font color of the text in output video')
+    parser.add_argument(
+        '--target-resolution',
+        nargs=2,
+        default=None,
+        type=int,
+        help='Target resolution (w, h) for resizing the frames when using a '
+        'video as input. If either dimension is set to -1, the frames are '
+        'resized by keeping the existing aspect ratio')
+    parser.add_argument('--out-filename', default=None, help='output filename')
+    args = parser.parse_args()
+    return args
+
+
 class MainWindow(QMainWindow):
 
-    def __init__(self):
+    def __init__(self, args=None):
         super().__init__()
+
+        self.args = args
+        self.__initialize()
 
         self._playlist = []
         self._playlist_index = -1
@@ -67,8 +103,19 @@ class MainWindow(QMainWindow):
         self.__initUI()
         self._mime_types = []
 
+    def __initialize(self):
+        cfg = Config.fromfile(self.args.config)
+        if self.args.cfg_options is not None:
+            cfg.merge_from_dict(self.args.cfg_options)
+        
+        self.model = init_recognizer(cfg, self.args.checkpoint, device=self.args.device)
+        
+        labels = open(self.args.label).readlines()
+        self.labels = [x.strip() for x in labels]
+
     def __initUI(self):
         self.setWindowTitle("Action Recognition Viewer")
+        self.setGeometry(100, 100, 1500, 1000)
 
         ## menu & toolbar
         tool_bar = QToolBar()
@@ -96,6 +143,7 @@ class MainWindow(QMainWindow):
         exit_action = QAction(icon, "E&xit", self,
                               shortcut="Ctrl+Q", triggered=self.close)
         file_menu.addAction(exit_action)
+        
 
         play_menu = self.menuBar().addMenu("&Play")
         icon = QIcon.fromTheme("media-playback-start.png",
@@ -128,22 +176,49 @@ class MainWindow(QMainWindow):
         self._stop_action.triggered.connect(self._ensure_stopped)
         play_menu.addAction(self._stop_action)
 
-        ## video
-        layout = QVBoxLayout()
+        main_layout = QHBoxLayout()
+        self.central_widget = QWidget()
+        self.central_widget.setLayout(main_layout)
+        self.setCentralWidget(self.central_widget)
 
-        self._video_widget = QVideoWidget()
-        self.setCentralWidget(self._video_widget)
+        ## video
+        v_layout = QVBoxLayout()
+        v_layout.setGeometry(QRect(0, 0, 800, 1000))
+        self.player_widget = QWidget()
+        self.player_widget.setMinimumWidth(800)
+        self.player_widget.setLayout(v_layout)
+
+        self._video_widget = QVideoWidget(self.player_widget)
+        self._video_widget.setMinimumHeight(600)
+        self._video_widget.setMaximumHeight(800)
+        # self.setCentralWidget(self._video_widget)
         self._player.playbackStateChanged.connect(self.update_buttons)
         self._player.setVideoOutput(self._video_widget)
+        self._player.mediaStatusChanged.connect(self.on_media_status_changed)
         self.update_buttons(self._player.playbackState())
 
-        self._webcam_widget = QLabel(self)
-        layout.addWidget(self._webcam_widget)
+        self._webcam_widget = QLabel(self.player_widget)
+        v_layout.addWidget(self._video_widget)
+        v_layout.addWidget(self._webcam_widget)
+        
+        main_layout.addWidget(self.player_widget)
 
-        layout.addWidget(self._video_widget)
-        self.central_widget = QWidget()
-        self.central_widget.setLayout(layout)
-        self.setCentralWidget(self.central_widget)
+        ## result
+        right_layout = QVBoxLayout()
+        self.rightWidget = QWidget()
+        self.rightWidget.setMinimumWidth(500)
+        self.rightWidget.setLayout(right_layout)
+
+        self.process_button = QPushButton("Process")
+        self.process_button.clicked.connect(self.process_video)
+        right_layout.addWidget(self.process_button)
+
+        self.result_panel = QTextEdit(self)
+        self.result_panel.setMinimumHeight(480)
+        self.result_panel.setText('Result')
+        right_layout.addWidget(self.result_panel)
+
+        main_layout.addWidget(self.rightWidget)
 
     def closeEvent(self, event):
         self._ensure_stopped()
@@ -176,6 +251,7 @@ class MainWindow(QMainWindow):
             self._playlist.append(url)
             self._playlist_index = len(self._playlist) - 1
             self._player.setSource(url)
+            self.now_play_url = url
             self._player.play()
     
     @Slot()
@@ -205,6 +281,10 @@ class MainWindow(QMainWindow):
             self._playlist.previous()
             self._player.setSource(self._playlist[self._playlist_index])
         else:
+            self._player.setPosition(0)
+    
+    def on_media_status_changed(self, status):
+        if status == QMediaPlayer.EndOfMedia:
             self._player.setPosition(0)
 
     @Slot()
@@ -245,16 +325,42 @@ class MainWindow(QMainWindow):
         pixmap = QPixmap.fromImage(q_image)
         self._webcam_widget.setPixmap(pixmap)
         self._webcam_widget.setAlignment(Qt.AlignCenter)
+    
+    def process_video(self):
+        self.result_panel.clear()
+
+        try:
+            # recognize action
+            pred_result = inference_recognizer(self.model, self.now_play_url)
+
+            pred_scores = pred_result.pred_scores.item.tolist()
+            score_tuples = tuple(zip(range(len(pred_scores)), pred_scores))
+            score_sorted = sorted(score_tuples, key=itemgetter(1), reverse=True)
+            top5_label = score_tuples[:5]
+
+            results = [(self.labels[k[0]], k[1]) for k in top5_label]
+
+            self.result_panel.append('<Top-5 labels with corresponding scores>')
+            for result in results:
+                self.result_panel.append(f'{result[0]}: ', result[1])
+
+        except Exception as e:
+            print(f'Error occured: {e}')
 
     def closeEvent(self, event):
         self.webcam_thread.stop()
         event.accept()
         
 
-
 if __name__ == '__main__':
+    args = parse_args()
+
     app = QApplication(sys.argv)
-    main_win = MainWindow()
+    fontDB = QFontDatabase()
+    fontDB.addApplicationFont('demo/font/Supreme-Medium.otf')
+    app.setFont(QFont('Supreme Medium', 12))
+    # main_win = MainWindow()
+    main_win = MainWindow(args)
     available_geometry = main_win.screen().availableGeometry()
     main_win.resize(available_geometry.width() / 3,
                     available_geometry.height() / 2)

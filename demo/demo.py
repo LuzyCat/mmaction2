@@ -12,10 +12,14 @@ from mmaction.visualization import ActionVisualizer
 
 def parse_args():
     parser = argparse.ArgumentParser(description='MMAction2 demo')
-    parser.add_argument('config', help='test config file path')
-    parser.add_argument('checkpoint', help='checkpoint file/url')
-    parser.add_argument('video', help='video file/url or rawframes directory')
-    parser.add_argument('label', help='label file')
+    parser.add_argument('--config', default='demo/demo_configs/slowfast_act3d_video_infer.py',
+                        help='test config file path')
+    parser.add_argument('--checkpoint', default='checkpoints/slowfast_r50_8xb8-4x16x1-256e_act3d.pth',
+                        help='checkpoint file/url')
+    parser.add_argument('--label', default='tools/data/ETRI-Activity3D/label_map_ETRI-Activity3D.txt',
+                        help='label file')
+    parser.add_argument('--video', default='demo/demo.mp4',
+                        help='video file/url or rawframes directory')
     parser.add_argument(
         '--cfg-options',
         nargs='+',
@@ -41,6 +45,7 @@ def parse_args():
         default='white',
         help='font color of the text in output video')
     parser.add_argument(
+
         '--target-resolution',
         nargs=2,
         default=None,
@@ -63,25 +68,26 @@ def get_output(
     font_color: str = 'white',
     target_resolution: Optional[Tuple[int]] = None,
 ) -> None:
-    """Get demo output using ``moviepy``.
 
-    This function will generate video file or gif file from raw video or
-    frames, by using ``moviepy``. For more information of some parameters,
-    you can refer to: https://github.com/Zulko/moviepy.
+    # """Get demo output using ``moviepy``.
 
-    Args:
-        video_path (str): The video file path.
-        out_filename (str): Output filename for the generated file.
-        datasample (str): Predicted label of the generated file.
-        labels (list): Label list of current dataset.
-        fps (int): Number of picture frames to read per second. Defaults to 30.
-        font_scale (float): Font scale of the text. Defaults to None.
-        font_color (str): Font color of the text. Defaults to ``white``.
-        target_resolution (Tuple[int], optional): Set to
-            (desired_width desired_height) to have resized frames. If
-            either dimension is None, the frames are resized by keeping
-            the existing aspect ratio. Defaults to None.
-    """
+    # This function will generate video file or gif file from raw video or
+    # frames, by using ``moviepy``. For more information of some parameters,
+    # you can refer to: https://github.com/Zulko/moviepy.
+
+    # Args:
+    #     video_path (str): The video file path.
+    #     out_filename (str): Output filename for the generated file.
+    #     datasample (str): Predicted label of the generated file.
+    #     labels (list): Label list of current dataset.
+    #     fps (int): Number of picture frames to read per second. Defaults to 30.
+    #     font_scale (float): Font scale of the text. Defaults to None.
+    #     font_color (str): Font color of the text. Defaults to ``white``.
+    #     target_resolution (Tuple[int], optional): Set to
+    #         (desired_width desired_height) to have resized frames. If
+    #         either dimension is None, the frames are resized by keeping
+    #         the existing aspect ratio. Defaults to None.
+    # """
 
     if video_path.startswith(('http://', 'https://')):
         raise NotImplementedError
