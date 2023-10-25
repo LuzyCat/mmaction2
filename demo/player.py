@@ -2,13 +2,18 @@
 import os
 import sys
 import cv2
+import torch
+import time
 import argparse
 import os.path as osp
+import numpy as np
 from operator import itemgetter
-from typing import Optional, Tuple
+from collections import deque
+from threading import Thread
+# from typing import Optional, Tuple
 # mmengine
 from mmengine import Config, DictAction
-
+from mmengine.dataset import Compose, pseudo_collate
 from mmaction.apis import inference_recognizer, init_recognizer
 from mmaction.visualization import ActionVisualizer
 # Qt
@@ -17,16 +22,22 @@ from PySide6.QtGui import QAction, QIcon, QKeySequence, QImage, QPixmap, QFontDa
 from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog,
                                 QMainWindow, QStyle, QToolBar, QWidget,
                                 QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox,
-                                QLabel, QTextEdit)
+                                QLabel, QTextEdit, QMenu)
 from PySide6.QtMultimedia import (QAudioOutput, QMediaFormat, QMediaPlayer)
 from PySide6.QtMultimediaWidgets import QVideoWidget
 
 from webcam import WebcamThread
+from inference import InferenceThread
 
 AVI = "video/x-msvideo"  # AVI
 MP4 = 'video/mp4'
 
 MODEL = None
+EXCLUED_STEPS = [
+    'OpenCVInit', 'OpenCVDecode', 'DecordInit', 'DecordDecode', 'PyAVInit',
+    'PyAVDecode', 'RawFrameDecode'
+]
+
 
 def get_supported_mime_types():
     result = []
@@ -43,6 +54,8 @@ def parse_args():
                         help='checkpoint file/url')
     parser.add_argument('--label', default='tools/data/ETRI-Activity3D/label_map_ETRI-Activity3D.txt',
                         help='label file')
+    parser.add_argument('--kor_label', default='tools/data/ETRI-Activity3D/label_map_ETRI-Activity3D_kor.txt',
+                        help='label file(Korean)')
     parser.add_argument(
         '--cfg-options',
         nargs='+',
@@ -67,6 +80,21 @@ def parse_args():
         '--font-color',
         default='white',
         help='font color of the text in output video')
+    parser.add_argument(
+        '--threshold',
+        type=float,
+        default=0.01,
+        help='recognition score threshold')
+    parser.add_argument(
+        '--average-size',
+        type=int,
+        default=5,
+        help='number of latest clips to be averaged for prediction')
+    parser.add_argument(
+        '--inference-fps',
+        type=int,
+        default=5,
+        help='Set upper bound FPS value of model inference')
     parser.add_argument(
         '--target-resolution',
         nargs=2,
@@ -99,19 +127,44 @@ class MainWindow(QMainWindow):
         self.cap = None
         self.webcam_thread = WebcamThread(self)
         self.webcam_thread.frame_update.connect(self.update_webcam)
+        self.frame_queue = deque(maxlen=self.sample_length)
+        self.result_queue = deque(maxlen=1)
 
         self.__initUI()
         self._mime_types = []
 
     def __initialize(self):
+        self.average_size = self.args.average_size
+        self.threshold = self.args.threshold
+        self.inference_fps = self.args.inference_fps
+        self.device = torch.device(self.args.device)
+
         cfg = Config.fromfile(self.args.config)
         if self.args.cfg_options is not None:
             cfg.merge_from_dict(self.args.cfg_options)
         
         self.model = init_recognizer(cfg, self.args.checkpoint, device=self.args.device)
-        
-        labels = open(self.args.label).readlines()
+        self.data = dict(img_shape=None, modality='RGB', label=-1)
+
+        cfg = self.model.cfg
+        self.sample_length = 32
+        pipeline = cfg.test_pipeline
+        pipeline_ = pipeline.copy()
+        for step in pipeline:
+            if 'SampleFrames' in step['type']:
+                self.sample_length = step['clip_len'] * step['num_clips']
+                self.data['num_clips'] = step['num_clips']
+                self.data['clip_len'] = step['clip_len']
+                pipeline_.remove(step)
+            if step['type'] in EXCLUED_STEPS:
+                pipeline_.remove(step)
+        self.pipeline = Compose(pipeline_)
+        # eng
+        labels = open(self.args.label,encoding='UTF-8').readlines()
         self.labels = [x.strip() for x in labels]
+        # kor
+        kor_labels = open(self.args.kor_label,encoding='UTF-8').readlines()
+        self.kor_labels = [x.strip() for x in kor_labels]
 
     def __initUI(self):
         self.setWindowTitle("Action Recognition Viewer")
@@ -207,16 +260,37 @@ class MainWindow(QMainWindow):
         right_layout = QVBoxLayout()
         self.rightWidget = QWidget()
         self.rightWidget.setMinimumWidth(500)
+        # self.rightWidget.setMaximumHeight(500)
         self.rightWidget.setLayout(right_layout)
 
         self.process_button = QPushButton("Process")
         self.process_button.clicked.connect(self.process_video)
         right_layout.addWidget(self.process_button)
 
+        self.dropdown_menu = QMenu(self.process_button)
+        self.process_button.setMenu(self.dropdown_menu)
+
+        action1 = QAction("Video", self)
+        action1.triggered.connect(self.process_video)
+        self.dropdown_menu.addAction(action1)
+
+        action2 = QAction("Webcam", self)
+        action2.triggered.connect(self.process_webcam)
+        self.dropdown_menu.addAction(action2)
+
         self.result_panel = QTextEdit(self)
         self.result_panel.setMinimumHeight(480)
+        self.result_panel.setMaximumHeight(480)
         self.result_panel.setText('Result')
         right_layout.addWidget(self.result_panel)
+
+        self.result_label = QLabel(self)
+        self.result_label.setMaximumHeight(100)
+        self.result_label.setText("-")
+        self.result_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.result_label.setFont(QFont("Noto Sans KR", 20, QFont.Bold))
+        right_layout.addWidget(self.result_label)
+        right_layout.setAlignment(Qt.AlignTop)
 
         main_layout.addWidget(self.rightWidget)
 
@@ -251,7 +325,7 @@ class MainWindow(QMainWindow):
             self._playlist.append(url)
             self._playlist_index = len(self._playlist) - 1
             self._player.setSource(url)
-            self.now_play_url = url
+            self.video_path = url.toLocalFile()
             self._player.play()
     
     @Slot()
@@ -325,30 +399,106 @@ class MainWindow(QMainWindow):
         pixmap = QPixmap.fromImage(q_image)
         self._webcam_widget.setPixmap(pixmap)
         self._webcam_widget.setAlignment(Qt.AlignCenter)
+        self.frame_queue.append(np.array(frame[:, :, ::-1]))
     
     def process_video(self):
         self.result_panel.clear()
+        self.result_label.setText("-")
 
         try:
             # recognize action
-            pred_result = inference_recognizer(self.model, self.now_play_url)
+            pred_result = inference_recognizer(self.model, self.video_path)
 
             pred_scores = pred_result.pred_scores.item.tolist()
             score_tuples = tuple(zip(range(len(pred_scores)), pred_scores))
             score_sorted = sorted(score_tuples, key=itemgetter(1), reverse=True)
-            top5_label = score_tuples[:5]
+            top5_label = score_sorted[:5]
 
             results = [(self.labels[k[0]], k[1]) for k in top5_label]
+            kor_results = [(self.kor_labels[k[0]], k[1]) for k in top5_label]
 
             self.result_panel.append('<Top-5 labels with corresponding scores>')
             for result in results:
-                self.result_panel.append(f'{result[0]}: ', result[1])
+                self.result_panel.append(f'{result[0]}: {result[1]:.4f}')
+
+            top1_kor_label = kor_results[0]
+            if top1_kor_label[1] > 0.7:
+                self.result_label.setText(f'{top1_kor_label[0]}')
 
         except Exception as e:
             print(f'Error occured: {e}')
 
+    def process_webcam(self):
+        print('Webcam')
+        self.inference_thread = InferenceThread()
+        # self.inference_thread.infResult.connect(self.update_result)
+    def update_result(self, result):
+        score_cache = deque()
+        scores_sum = 0
+        cur_time = time.time()
+        while True:
+            cur_windows = []
+            while len(cur_windows) == 0:
+                if len(self.frame_queue) == self.sample_length:
+                    cur_windows = list(np.array(self.frame_queue))
+                    if self.data['img_shape'] is None:
+                        self.data['img_shape'] = self.frame_queue.popleft().shape[:2]
+            cur_data = self.data.copy()
+            cur_data['imgs'] = cur_windows
+            cur_data = self.pipeline(cur_data)
+            
+            cur_data = pseudo_collate([cur_data])
+
+            # Forward the model
+            with torch.no_grad():
+                result = self.model.test_step(cur_data)[0]
+            scores = result.pred_scores.item.tolist()
+            scores = np.array(scores)
+            score_cache.append(scores)
+            scores_sum += scores
+
+            if len(score_cache) == self.average_size:
+                scores_avg = scores_sum / self.average_size
+                num_selected_labels = min(len(self.labels), 5)
+
+                score_tuples = tuple(zip(self.labels, scores_avg))
+                score_sorted = sorted(
+                    score_tuples, key=itemgetter(1), reverse=True)
+                results = score_sorted[:num_selected_labels]
+
+                self.result_queue.append(results)
+                scores_sum -= score_cache.popleft()
+
+                if len(self.result_queue) != 0 :
+                    self.result_panel.clear()
+                    self.result_label.setText("-")
+                    results = self.result_queue.popleft()
+                    self.result_panel.append('<Top-5 labels with corresponding scores>')
+                    
+                    top1_label = None
+                    for i, result in enumerate(results):
+                        selected_label, score = result
+                        if score < self.threshold:
+                            break
+                        if i == 0:
+                            top1_label = result
+                        self.result_panel.append(f'{selected_label}: {score:.4f}')
+
+                    if top1_label != None:
+                        top1_kor_label = top1_label
+                        top1_kor_label[0] = self.kor_labels[self.labels.index(top1_label[0])]
+                        if top1_kor_label[1] > 0.7:
+                            self.result_label.setText(f'{top1_kor_label[0]}')
+
+                if self.inference_fps > 0:
+                    sleep_time = 1 / self.inference_fps - (time.time() - cur_time)
+                    if sleep_time > 0:
+                        time.sleep(sleep_time)
+                    cur_time = time.time()
+
     def closeEvent(self, event):
         self.webcam_thread.stop()
+        self.inference_thread.stop()
         event.accept()
         
 
@@ -358,7 +508,9 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     fontDB = QFontDatabase()
     fontDB.addApplicationFont('demo/font/Supreme-Medium.otf')
+    fontDB.addApplicationFont('demo/font/NotoSansKR-Bold.otf')
     app.setFont(QFont('Supreme Medium', 12))
+    # app.setFont(QFont('Noto Sans KR', 13))
     # main_win = MainWindow()
     main_win = MainWindow(args)
     available_geometry = main_win.screen().availableGeometry()
