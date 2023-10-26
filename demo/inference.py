@@ -1,19 +1,25 @@
 import time
-import numpy as np
-from operator import itemgetter
-from collections import deque
+from PySide6.QtCore import QThread, Signal, Slot
 
-import torch
-from PySide6.QtCore import QObject, QThread, Signal, Qt, Slot
-from mmengine.dataset import Compose, pseudo_collate
 
 class InferenceThread(QThread):
-    infResult = Signal(list)
+    infResult = Signal(float)
 
-    def __init__(self):
+    def __init__(self, inference_fps):
         super().__init__()
+        self.stopped = False
+        self.inference_fps = inference_fps
 
-    @Slot()
-    def inference(self):
-        self.infResult.emit(results)
+    def run(self):
+        cur_time = time.time()
+        while not self.stopped:
+            self.infResult.emit(cur_time)
+            if self.inference_fps > 0:
+                sleep_time = 1 / self.inference_fps - (time.time() - cur_time)
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+            cur_time = time.time()
+
+    def stop(self):
+        self.stopped = True
 

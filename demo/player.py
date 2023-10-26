@@ -127,6 +127,8 @@ class MainWindow(QMainWindow):
         self.cap = None
         self.webcam_thread = WebcamThread(self)
         self.webcam_thread.frame_update.connect(self.update_webcam)
+        self.inference_thread = InferenceThread(self.inference_fps)
+        self.inference_thread.infResult.connect(self.update_result)
         self.frame_queue = deque(maxlen=self.sample_length)
         self.result_queue = deque(maxlen=1)
 
@@ -429,72 +431,65 @@ class MainWindow(QMainWindow):
             print(f'Error occured: {e}')
 
     def process_webcam(self):
-        print('Webcam')
-        self.inference_thread = InferenceThread()
-        # self.inference_thread.infResult.connect(self.update_result)
-    def update_result(self, result):
-        score_cache = deque()
-        scores_sum = 0
-        cur_time = time.time()
-        while True:
-            cur_windows = []
-            while len(cur_windows) == 0:
-                if len(self.frame_queue) == self.sample_length:
-                    cur_windows = list(np.array(self.frame_queue))
-                    if self.data['img_shape'] is None:
-                        self.data['img_shape'] = self.frame_queue.popleft().shape[:2]
-            cur_data = self.data.copy()
-            cur_data['imgs'] = cur_windows
-            cur_data = self.pipeline(cur_data)
-            
-            cur_data = pseudo_collate([cur_data])
+        self.score_cache = deque()
+        self.scores_sum = 0
+        print("Inference Thread Start...")
+        self.inference_thread.start()
 
-            # Forward the model
-            with torch.no_grad():
-                result = self.model.test_step(cur_data)[0]
-            scores = result.pred_scores.item.tolist()
-            scores = np.array(scores)
-            score_cache.append(scores)
-            scores_sum += scores
+    def update_result(self, cur_time):
+        cur_windows = []
+        while len(cur_windows) == 0:
+            if len(self.frame_queue) == self.sample_length:
+                cur_windows = list(np.array(self.frame_queue))
+                if self.data['img_shape'] is None:
+                    self.data['img_shape'] = self.frame_queue.popleft().shape[:2]
+        cur_data = self.data.copy()
+        cur_data['imgs'] = cur_windows
+        cur_data = self.pipeline(cur_data)
+        
+        cur_data = pseudo_collate([cur_data])
 
-            if len(score_cache) == self.average_size:
-                scores_avg = scores_sum / self.average_size
-                num_selected_labels = min(len(self.labels), 5)
+        # Forward the model
+        with torch.no_grad():
+            result = self.model.test_step(cur_data)[0]
+        scores = result.pred_scores.item.tolist()
+        scores = np.array(scores)
+        self.score_cache.append(scores)
+        self.scores_sum += scores
 
-                score_tuples = tuple(zip(self.labels, scores_avg))
-                score_sorted = sorted(
-                    score_tuples, key=itemgetter(1), reverse=True)
-                results = score_sorted[:num_selected_labels]
+        if len(self.score_cache) == self.average_size:
+            scores_avg = self.scores_sum / self.average_size
+            num_selected_labels = min(len(self.labels), 5)
 
-                self.result_queue.append(results)
-                scores_sum -= score_cache.popleft()
+            score_tuples = tuple(zip(self.labels, scores_avg))
+            score_sorted = sorted(
+                score_tuples, key=itemgetter(1), reverse=True)
+            results = score_sorted[:num_selected_labels]
 
-                if len(self.result_queue) != 0 :
-                    self.result_panel.clear()
-                    self.result_label.setText("-")
-                    results = self.result_queue.popleft()
-                    self.result_panel.append('<Top-5 labels with corresponding scores>')
-                    
-                    top1_label = None
-                    for i, result in enumerate(results):
-                        selected_label, score = result
-                        if score < self.threshold:
-                            break
-                        if i == 0:
-                            top1_label = result
-                        self.result_panel.append(f'{selected_label}: {score:.4f}')
+            self.result_queue.append(results)
+            self.scores_sum -= self.score_cache.popleft()
 
-                    if top1_label != None:
-                        top1_kor_label = top1_label
-                        top1_kor_label[0] = self.kor_labels[self.labels.index(top1_label[0])]
-                        if top1_kor_label[1] > 0.7:
-                            self.result_label.setText(f'{top1_kor_label[0]}')
+            if len(self.result_queue) != 0 :
+                self.result_panel.clear()
+                self.result_label.setText("-")
+                results = self.result_queue.popleft()
+                self.result_panel.append('<Top-5 labels with corresponding scores>')
+                
+                top1_label = None
+                for i, result in enumerate(results):
+                    selected_label, score = result
+                    if score < self.threshold:
+                        break
+                    if i == 0:
+                        top1_label = result
+                    self.result_panel.append(f'{selected_label}: {score:.4f}')
 
-                if self.inference_fps > 0:
-                    sleep_time = 1 / self.inference_fps - (time.time() - cur_time)
-                    if sleep_time > 0:
-                        time.sleep(sleep_time)
-                    cur_time = time.time()
+                if top1_label != None:
+                    top1_kor_label = top1_label
+                    kor_label = self.kor_labels[self.labels.index(top1_label[0])]
+                    if top1_kor_label[1] > 0.7:
+                        self.result_label.setText(f'{kor_label}')
+
 
     def closeEvent(self, event):
         self.webcam_thread.stop()
