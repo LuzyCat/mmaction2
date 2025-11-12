@@ -1,5 +1,5 @@
 import time
-from PySide6.QtCore import QThread, Signal, Slot
+from PySide6.QtCore import QThread, Signal
 
 
 class InferenceThread(QThread):
