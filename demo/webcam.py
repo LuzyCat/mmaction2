@@ -1,6 +1,4 @@
 from PySide6.QtCore import QThread, Signal
-import cv2
-import numpy as np
 
 class WebcamThread(QThread):
     frame_update = Signal(object)

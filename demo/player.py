@@ -1,11 +1,10 @@
-# Copyright (c) OpenMMLab. All rights reserved.
 import os
 import sys
 import cv2
 import torch
-import time
+# import time
 import argparse
-import os.path as osp
+# import os.path as osp
 import numpy as np
 from operator import itemgetter
 from collections import deque
@@ -22,7 +21,7 @@ from PySide6.QtGui import QAction, QIcon, QKeySequence, QImage, QPixmap, QFontDa
 from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog,
                                 QMainWindow, QStyle, QToolBar, QWidget,
                                 QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox,
-                                QLabel, QTextEdit, QMenu)
+                                QLabel, QTextEdit, QMenu, QTabWidget, QGroupBox)
 from PySide6.QtMultimedia import (QAudioOutput, QMediaFormat, QMediaPlayer)
 from PySide6.QtMultimediaWidgets import QVideoWidget
 
@@ -147,6 +146,7 @@ class MainWindow(QMainWindow):
         
         self.model = init_recognizer(cfg, self.args.checkpoint, device=self.args.device)
         self.data = dict(img_shape=None, modality='RGB', label=-1)
+        print('Loading pose model from %s...' % (self.args.checkpoint,))
 
         cfg = self.model.cfg
         self.sample_length = 32
@@ -236,27 +236,34 @@ class MainWindow(QMainWindow):
         self.central_widget.setLayout(main_layout)
         self.setCentralWidget(self.central_widget)
 
-        ## video
-        v_layout = QVBoxLayout()
-        v_layout.setGeometry(QRect(0, 0, 800, 1000))
-        self.player_widget = QWidget()
-        self.player_widget.setMinimumWidth(800)
-        self.player_widget.setLayout(v_layout)
-
-        self._video_widget = QVideoWidget(self.player_widget)
+        self._video_widget = QVideoWidget()
+        self._video_widget.setMinimumWidth(800)
         self._video_widget.setMinimumHeight(600)
-        self._video_widget.setMaximumHeight(800)
-        # self.setCentralWidget(self._video_widget)
         self._player.playbackStateChanged.connect(self.update_buttons)
         self._player.setVideoOutput(self._video_widget)
-        self._player.mediaStatusChanged.connect(self.on_media_status_changed)
+        # self._player.mediaStatusChanged.connect(self.on_media_status_changed)
+        # self._player.stateChanged.connect(self.on_media_status_changed)
+        self._player.setLoops(QMediaPlayer.Loops.Infinite)
         self.update_buttons(self._player.playbackState())
 
-        self._webcam_widget = QLabel(self.player_widget)
-        v_layout.addWidget(self._video_widget)
-        v_layout.addWidget(self._webcam_widget)
-        
-        main_layout.addWidget(self.player_widget)
+        self._webcam_widget = QLabel()
+
+        ## Video Tab
+        video_tab_layout = QVBoxLayout()
+        video_tab_layout.addWidget(self._video_widget)
+        video_tab = QWidget()
+        video_tab.setLayout(video_tab_layout)
+        ## Webcam Tab
+        webcam_tab_layout = QVBoxLayout()
+        webcam_tab_layout.addWidget(self._webcam_widget)
+        webcam_tab = QWidget()
+        webcam_tab.setLayout(webcam_tab_layout)
+
+        tab_widget = QTabWidget(self)
+        tab_widget.addTab(video_tab, "Video")
+        tab_widget.addTab(webcam_tab, "Webcam")
+
+        main_layout.addWidget(tab_widget)
 
         ## result
         right_layout = QVBoxLayout()
@@ -280,9 +287,25 @@ class MainWindow(QMainWindow):
         action2.triggered.connect(self.process_webcam)
         self.dropdown_menu.addAction(action2)
 
+        # Create a group box to contain status, frame, persons, model
+        self.info_group_box = QGroupBox("Information")
+        info_layout = QVBoxLayout()
+        
+        # Pose tracking status display
+        self.status_label = QLabel("Status: Ready")
+        info_layout.addWidget(self.status_label)
+
+        # Model
+        self.model_label = QLabel("Model:")
+        self.model_label.setText("Model: " + self.args.checkpoint)
+        info_layout.addWidget(self.model_label)
+
+        self.info_group_box.setLayout(info_layout)
+        right_layout.addWidget(self.info_group_box)
+
         self.result_panel = QTextEdit(self)
-        self.result_panel.setMinimumHeight(480)
-        self.result_panel.setMaximumHeight(480)
+        self.result_panel.setMinimumHeight(400)
+        self.result_panel.setMaximumHeight(400)
         self.result_panel.setText('Result')
         right_layout.addWidget(self.result_panel)
 
@@ -362,6 +385,7 @@ class MainWindow(QMainWindow):
     def on_media_status_changed(self, status):
         if status == QMediaPlayer.EndOfMedia:
             self._player.setPosition(0)
+            self._player.pause()
 
     @Slot()
     def next_clicked(self):
@@ -406,6 +430,8 @@ class MainWindow(QMainWindow):
     def process_video(self):
         self.result_panel.clear()
         self.result_label.setText("-")
+        self.status_label.setText("Status: Tracking Video")
+        self.status_label.setStyleSheet("color: red;")
 
         try:
             # recognize action
@@ -434,6 +460,8 @@ class MainWindow(QMainWindow):
         self.score_cache = deque()
         self.scores_sum = 0
         print("Inference Thread Start...")
+        self.status_label.setText("Status: Tracking Webcam")
+        self.status_label.setStyleSheet("color: red;")
         self.inference_thread.start()
 
     def update_result(self, cur_time):
