@@ -1,0 +1,5 @@
+data/
+work_dirs/
+checkpoints/
+*.pth
+*.pt
