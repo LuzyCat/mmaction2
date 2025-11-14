@@ -136,13 +136,7 @@ param_scheduler = [
 ]
 
 default_hooks = dict(
-    checkpoint=dict(
-        interval=1,            # 매 epoch 저장 (resume 대비)
-        max_keep_ckpts=3,
-        save_best='auto',      # 또는 'acc/top1', 'val/top1_acc' 등 명시적 지표명
-        rule='greater'),       # 지표가 클수록 좋을 때는 'greater', 손실이면 'less'
-    logger=dict(interval=100))
-
+    checkpoint=dict(interval=1, max_keep_ckpts=3, save_best='auto', rule='greater'), logger=dict(interval=100))
 
 vis_backends = [
     dict(type='LocalVisBackend'),
