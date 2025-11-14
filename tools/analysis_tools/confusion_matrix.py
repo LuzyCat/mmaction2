@@ -1,6 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import argparse
-import logging
 import tempfile
 
 import torch
@@ -84,7 +83,6 @@ def main():
             classes = runner.test_loop.dataloader.dataset.metainfo.get(
                 'classes')
             cm = runner.test()['confusion_matrix/result']
-            logging.shutdown()
     else:
         predictions = load(args.ckpt_or_result)
         evaluator = Evaluator(ConfusionMatrix())

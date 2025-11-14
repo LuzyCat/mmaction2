@@ -1,9 +1,8 @@
 _base_ = [
-    '../../_base_/models/tsm_mobileone_s4.py',
+    '../../_base_/models/tsm_mobilenet_v2.py',
     '../../_base_/default_runtime.py'
 ]
 
-model = dict(cls_head=dict(num_segments=16))
 # dataset settings
 dataset_type = 'VideoDataset'
 data_root = 'data/kinetics400/videos_train'
@@ -15,7 +14,7 @@ file_client_args = dict(io_backend='disk')
 
 train_pipeline = [
     dict(type='DecordInit', **file_client_args),
-    dict(type='SampleFrames', clip_len=1, frame_interval=1, num_clips=16),
+    dict(type='SampleFrames', clip_len=1, frame_interval=1, num_clips=8),
     dict(type='DecordDecode'),
     dict(type='Resize', scale=(-1, 256)),
     dict(
@@ -36,7 +35,7 @@ val_pipeline = [
         type='SampleFrames',
         clip_len=1,
         frame_interval=1,
-        num_clips=16,
+        num_clips=8,
         test_mode=True),
     dict(type='DecordDecode'),
     dict(type='Resize', scale=(-1, 256)),
@@ -50,17 +49,17 @@ test_pipeline = [
         type='SampleFrames',
         clip_len=1,
         frame_interval=1,
-        num_clips=16,
+        num_clips=8,
         test_mode=True),
     dict(type='DecordDecode'),
     dict(type='Resize', scale=(-1, 256)),
-    dict(type='ThreeCrop', crop_size=256),
+    dict(type='TenCrop', crop_size=224),
     dict(type='FormatShape', input_format='NCHW'),
     dict(type='PackActionInputs')
 ]
 
 train_dataloader = dict(
-    batch_size=8,
+    batch_size=16,
     num_workers=8,
     persistent_workers=True,
     sampler=dict(type='DefaultSampler', shuffle=True),
@@ -70,7 +69,7 @@ train_dataloader = dict(
         data_prefix=dict(video=data_root),
         pipeline=train_pipeline))
 val_dataloader = dict(
-    batch_size=8,
+    batch_size=16,
     num_workers=8,
     persistent_workers=True,
     sampler=dict(type='DefaultSampler', shuffle=False),
@@ -116,11 +115,11 @@ param_scheduler = [
 optim_wrapper = dict(
     constructor='TSMOptimWrapperConstructor',
     paramwise_cfg=dict(fc_lr5=True),
-    optimizer=dict(type='SGD', lr=0.02, momentum=0.9, weight_decay=0.00002),
+    optimizer=dict(type='SGD', lr=0.02, momentum=0.9, weight_decay=0.0001),
     clip_grad=dict(max_norm=20, norm_type=2))
 
 # Default setting for scaling LR automatically
 #   - `enable` means enable scaling LR automatically
 #       or not by default.
 #   - `base_batch_size` = (8 GPUs) x (16 samples per GPU).
-auto_scale_lr = dict(enable=True, base_batch_size=128)
+auto_scale_lr = dict(enable=False, base_batch_size=128)

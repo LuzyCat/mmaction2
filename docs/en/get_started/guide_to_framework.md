@@ -179,8 +179,7 @@ class VideoPack(BaseTransform):
     def transform(self, results):
         packed_results = dict()
         inputs = to_tensor(results['imgs'])
-        data_sample = ActionDataSample()
-        data_sample.set_gt_label(results['label'])
+        data_sample = ActionDataSample().set_gt_labels(results['label'])
         metainfo = {k: results[k] for k in self.meta_keys if k in results}
         data_sample.set_metainfo(metainfo)
         packed_results['inputs'] = inputs
@@ -220,7 +219,7 @@ print('num_clips: ', data_sample.num_clips)
 print('clip_len: ', data_sample.clip_len)
 
 # Get label of the inputs
-print('label: ', data_sample.gt_label)
+print('label: ', data_sample.gt_labels.item)
 ```
 
 ```
@@ -322,7 +321,7 @@ print('num_clips: ', data_sample.num_clips)
 print('clip_len: ', data_sample.clip_len)
 
 # Get label of the inputs
-print('label: ', data_sample.gt_label)
+print('label: ', data_sample.gt_labels.item)
 
 from mmengine.runner import Runner
 
@@ -482,7 +481,7 @@ class ClsHeadZelda(BaseModule):
 
     def loss(self, feats, data_samples):
         cls_scores = self(feats)
-        labels = torch.stack([x.gt_label for x in data_samples])
+        labels = torch.stack([x.gt_labels.item for x in data_samples])
         labels = labels.squeeze()
 
         if labels.shape == torch.Size([]):
@@ -590,8 +589,8 @@ with torch.no_grad():
     data_batch_test = copy.deepcopy(batched_packed_results)
     data = model.data_preprocessor(data_batch_test, training=False)
     predictions = model(**data, mode='predict')
-print('Label of Sample[0]', predictions[0].gt_label)
-print('Scores of Sample[0]', predictions[0].pred_score)
+print('Label of Sample[0]', predictions[0].gt_labels.item)
+print('Scores of Sample[0]', predictions[0].pred_scores.item)
 ```
 
 ```shell
@@ -662,8 +661,8 @@ class AccuracyMetric(BaseMetric):
         data_samples = copy.deepcopy(data_samples)
         for data_sample in data_samples:
             result = dict()
-            scores = data_sample['pred_score'].cpu().numpy()
-            label = data_sample['gt_label'].item()
+            scores = data_sample['pred_scores']['item'].cpu().numpy()
+            label = data_sample['gt_labels']['item'].item()
             result['scores'] = scores
             result['label'] = label
             self.results.append(result)

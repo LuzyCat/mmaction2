@@ -46,7 +46,6 @@ model = dict(
         shared_head=dict(type='ACRNHead', in_channels=4608, out_channels=2304),
         bbox_head=dict(
             type='BBoxHeadAVA',
-            background_class=True,
             in_channels=2304,
             num_classes=81,
             multilabel=True,

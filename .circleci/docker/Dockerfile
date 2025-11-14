@@ -1,6 +1,6 @@
 ARG PYTORCH="1.8.1"
-ARG CUDA="11.1"
-ARG CUDNN="8"
+ARG CUDA="10.2"
+ARG CUDNN="7"
 
 FROM pytorch/pytorch:${PYTORCH}-cuda${CUDA}-cudnn${CUDNN}-devel
 

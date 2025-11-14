@@ -1,6 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 from mmaction.registry import MODELS
-from mmaction.utils import get_str_type
 from .resnet3d import ResNet3d
 
 
@@ -15,7 +14,7 @@ class ResNet2Plus1d(ResNet3d):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         assert self.pretrained2d is False
-        assert get_str_type(self.conv_cfg['type']) == 'Conv2plus1d'
+        assert self.conv_cfg['type'] == 'Conv2plus1d'
 
     def _freeze_stages(self):
         """Prevent all the parameters from being optimized before

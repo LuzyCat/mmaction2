@@ -111,7 +111,7 @@ def get_cfg(config_type, fname):
     influencing other tests.
     """
     config_types = ('recognition', 'recognition_audio', 'localization',
-                    'detection', 'skeleton', 'retrieval')
+                    'detection', 'skeleton')
     assert config_type in config_types
 
     repo_dpath = osp.dirname(osp.dirname(osp.dirname(__file__)))
@@ -141,7 +141,3 @@ def get_detector_cfg(fname):
 
 def get_skeletongcn_cfg(fname):
     return get_cfg('skeleton', fname)
-
-
-def get_similarity_cfg(fname):
-    return get_cfg('retrieval', fname)

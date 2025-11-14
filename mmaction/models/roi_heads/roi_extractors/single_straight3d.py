@@ -6,6 +6,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
+try:
+    from mmdet.registry import MODELS as MMDET_MODELS
+    mmdet_imported = True
+except (ImportError, ModuleNotFoundError):
+    mmdet_imported = False
+
 
 class SingleRoIExtractor3D(nn.Module):
     """Extract RoI features from a single level feature map.
@@ -124,3 +130,7 @@ class SingleRoIExtractor3D(nn.Module):
 
         roi_feats = torch.stack(roi_feats, dim=2)
         return roi_feats, feat
+
+
+if mmdet_imported:
+    MMDET_MODELS.register_module()(SingleRoIExtractor3D)

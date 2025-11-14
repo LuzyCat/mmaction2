@@ -11,7 +11,7 @@ import ssl
 import subprocess
 import uuid
 
-import mmengine
+import mmcv
 from joblib import Parallel, delayed
 
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -173,7 +173,7 @@ def main(input_csv,
     # Clean tmp dir.
     shutil.rmtree(tmp_dir)
     # Save download report.
-    mmengine.dump(status_lst, 'download_report.json')
+    mmcv.dump(status_lst, 'download_report.json')
 
 
 if __name__ == '__main__':

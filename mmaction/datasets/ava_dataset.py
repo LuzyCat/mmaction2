@@ -15,10 +15,10 @@ from .base import BaseActionDataset
 
 @DATASETS.register_module()
 class AVADataset(BaseActionDataset):
-    """STAD dataset for spatial temporal action detection.
+    """AVA dataset for spatial temporal detection.
 
-    The dataset loads raw frames/video files, bounding boxes,
-    proposals and applies specified transformations to return
+    Based on official AVA annotation files, the dataset loads raw frames,
+    bounding boxes, proposals and applies specified transformations to return
     a dict containing the frame tensors and other information.
 
     This datasets can load information from the following files:
@@ -62,8 +62,8 @@ class AVADataset(BaseActionDataset):
         filename_tmpl (str): Template for each filename.
             Defaults to 'img_{:05}.jpg'.
         start_index (int): Specify a start index for frames in consideration of
-            different filename format. It should be set to 1 for AVA, since
-            frame index start from 1 in AVA dataset. Defaults to 1.
+            different filename format. However, when taking frames as input,
+            it should be set to 0, since frames from 0. Defaults to 0.
         proposal_file (str): Path to the proposal file like
             ``ava_dense_proposals_{train, val}.FAIR.recall_93.9.pkl``.
             Defaults to None.
@@ -91,22 +91,16 @@ class AVADataset(BaseActionDataset):
             Defaults to 902.
         timestamp_end (int): The end point of included timestamps. The default
             value is referred from the official website. Defaults to 1798.
-        use_frames (bool): Whether to use rawframes as input.
-            Defaults to True.
-        fps (int): Overrides the default FPS for the dataset. If set to 1,
-            means counting timestamp by frame, e.g. MultiSports dataset.
-            Otherwise by second. Defaults to 30.
-        multilabel (bool): Determines whether it is a multilabel recognition
-            task. Defaults to True.
+        fps (int): Overrides the default FPS for the dataset. Defaults to 30.
     """
 
     def __init__(self,
                  ann_file: str,
+                 exclude_file: str,
                  pipeline: List[Union[ConfigType, Callable]],
-                 exclude_file: Optional[str] = None,
-                 label_file: Optional[str] = None,
+                 label_file: str,
                  filename_tmpl: str = 'img_{:05}.jpg',
-                 start_index: int = 1,
+                 start_index: int = 0,
                  proposal_file: str = None,
                  person_det_score_thr: float = 0.9,
                  num_classes: int = 81,
@@ -117,9 +111,7 @@ class AVADataset(BaseActionDataset):
                  num_max_proposals: int = 1000,
                  timestamp_start: int = 900,
                  timestamp_end: int = 1800,
-                 use_frames: bool = True,
                  fps: int = 30,
-                 multilabel: bool = True,
                  **kwargs) -> None:
         self._FPS = fps  # Keep this as standard
         self.custom_classes = custom_classes
@@ -141,8 +133,6 @@ class AVADataset(BaseActionDataset):
         self.timestamp_end = timestamp_end
         self.num_max_proposals = num_max_proposals
         self.filename_tmpl = filename_tmpl
-        self.use_frames = use_frames
-        self.multilabel = multilabel
 
         super().__init__(
             ann_file,
@@ -195,14 +185,12 @@ class AVADataset(BaseActionDataset):
             ])
 
             # The format can be directly used by BCELossWithLogits
-            if self.multilabel:
-                label = np.zeros(self.num_classes, dtype=np.float32)
-                label[valid_labels] = 1.
-            else:
-                label = valid_labels
+            label = np.zeros(self.num_classes, dtype=np.float32)
+            label[valid_labels] = 1.
 
             labels.append(label)
             entity_ids.append(img_record['entity_id'])
+
         bboxes = np.stack(bboxes)
         labels = np.stack(labels)
         entity_ids = np.stack(entity_ids)
@@ -224,17 +212,13 @@ class AVADataset(BaseActionDataset):
                 label = self.custom_classes.index(label)
 
             video_id = line_split[0]
-            timestamp = int(line_split[1])  # count by second or frame.
+            timestamp = int(line_split[1])
             img_key = f'{video_id},{timestamp:04d}'
 
             entity_box = np.array(list(map(float, line_split[2:6])))
             entity_id = int(line_split[7])
-            if self.use_frames:
-                shot_info = (0, (self.timestamp_end - self.timestamp_start) *
-                             self._FPS)
-            # for video data, automatically get shot info when decoding
-            else:
-                shot_info = None
+            shot_info = (0, (self.timestamp_end - self.timestamp_start) *
+                         self._FPS)
 
             video_info = dict(
                 video_id=video_id,
@@ -262,8 +246,6 @@ class AVADataset(BaseActionDataset):
                 shot_info=shot_info,
                 fps=self._FPS,
                 ann=ann)
-            if not self.use_frames:
-                video_info['filename'] = video_info.pop('frame_dir')
             data_list.append(video_info)
 
         return data_list
@@ -318,12 +300,6 @@ class AVADataset(BaseActionDataset):
                 else:
                     proposals = proposals[:self.num_max_proposals]
                     data_info['proposals'] = proposals
-
-                assert data_info['proposals'].max() <= 1 and \
-                    data_info['proposals'].min() >= 0, \
-                    (f'relative proposals invalid: max value '
-                     f'{data_info["proposals"].max()}, min value '
-                     f'{data_info["proposals"].min()}')
 
         ann = data_info.pop('ann')
         data_info['gt_bboxes'] = ann['gt_bboxes']

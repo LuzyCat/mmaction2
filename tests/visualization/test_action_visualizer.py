@@ -3,6 +3,8 @@ import platform
 
 import decord
 import pytest
+import torch
+from mmengine.structures import LabelData
 
 from mmaction.structures import ActionDataSample
 from mmaction.visualization import ActionVisualizer
@@ -14,7 +16,7 @@ def test_visualizer():
     video = video.get_batch(range(32)).asnumpy()
 
     data_sample = ActionDataSample()
-    data_sample.set_gt_label(2)
+    data_sample.gt_labels = LabelData(item=torch.tensor([2]))
 
     vis = ActionVisualizer()
     vis.add_datasample('demo', video)
