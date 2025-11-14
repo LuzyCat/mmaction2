@@ -21,7 +21,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 RUN pip install --upgrade pip && \
-    pip install "numpy<2" && \
+    pip install "numpy<2" matplotlib seaborn tensorboard && \
     pip install openmim && \
     mim install "mmengine>=0.10.4" "mmcv>=2.1.0"
 
